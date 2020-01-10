@@ -24,7 +24,7 @@
 #ifndef __GUPNP_LAST_CHANGE_PARSER_H__
 #define __GUPNP_LAST_CHANGE_PARSER_H__
 
-#include <glib-object.h>
+#include <libgupnp/gupnp.h>
 
 G_BEGIN_DECLS
 

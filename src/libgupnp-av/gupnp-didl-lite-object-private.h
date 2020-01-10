@@ -25,8 +25,6 @@
 #ifndef __GUPNP_DIDL_LITE_OBJECT_PRIVATE_H__
 #define __GUPNP_DIDL_LITE_OBJECT_PRIVATE_H__
 
-#include "xml-util.h"
-
 #include <glib-object.h>
 #include <libxml/tree.h>
 
@@ -34,13 +32,12 @@ G_BEGIN_DECLS
 
 G_GNUC_INTERNAL GUPnPDIDLLiteObject *
 gupnp_didl_lite_object_new_from_xml     (xmlNode     *xml_node,
-                                         GUPnPAVXMLDoc *xml_doc,
+                                         GUPnPXMLDoc *xml_doc,
                                          xmlNs       *upnp_ns,
                                          xmlNs       *dc_ns,
-                                         xmlNs       *dlna_ns,
-                                         xmlNs       *pv_ns);
+                                         xmlNs       *dlna_ns);
 
-G_GNUC_INTERNAL GUPnPAVXMLDoc *
+G_GNUC_INTERNAL GUPnPXMLDoc *
 gupnp_didl_lite_object_get_gupnp_xml_doc
                                         (GUPnPDIDLLiteObject *object);
 

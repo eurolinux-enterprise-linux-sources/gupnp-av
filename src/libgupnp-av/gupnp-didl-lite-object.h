@@ -94,9 +94,6 @@ xmlNsPtr
 gupnp_didl_lite_object_get_dlna_namespace
                                         (GUPnPDIDLLiteObject *object);
 
-xmlNsPtr
-gupnp_didl_lite_object_get_pv_namespace
-                                        (GUPnPDIDLLiteObject *object);
 const char *
 gupnp_didl_lite_object_get_upnp_class   (GUPnPDIDLLiteObject *object);
 
@@ -109,9 +106,6 @@ gupnp_didl_lite_object_get_parent_id    (GUPnPDIDLLiteObject *object);
 GList *
 gupnp_didl_lite_object_get_properties   (GUPnPDIDLLiteObject *object,
                                          const char          *name);
-
-gboolean
-gupnp_didl_lite_object_is_restricted_set (GUPnPDIDLLiteObject *object);
 
 gboolean
 gupnp_didl_lite_object_get_restricted   (GUPnPDIDLLiteObject *object);

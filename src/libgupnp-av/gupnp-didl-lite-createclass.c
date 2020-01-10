@@ -32,7 +32,6 @@
 #include <string.h>
 
 #include "gupnp-didl-lite-createclass.h"
-#include "gupnp-didl-lite-createclass-private.h"
 #include "xml-util.h"
 
 G_DEFINE_TYPE (GUPnPDIDLLiteCreateClass,
@@ -41,7 +40,7 @@ G_DEFINE_TYPE (GUPnPDIDLLiteCreateClass,
 
 struct _GUPnPDIDLLiteCreateClassPrivate {
         xmlNode     *xml_node;
-        GUPnPAVXMLDoc *xml_doc;
+        GUPnPXMLDoc *xml_doc;
 };
 
 enum {
@@ -118,7 +117,7 @@ gupnp_didl_lite_create_class_set_property (GObject      *object,
                 create_class->priv->xml_node = g_value_get_pointer (value);
                 break;
         case PROP_XML_DOC:
-                create_class->priv->xml_doc = g_value_dup_boxed (value);
+                create_class->priv->xml_doc = g_value_dup_object (value);
                 break;
         case PROP_CONTENT:
                 gupnp_didl_lite_create_class_set_content
@@ -149,7 +148,10 @@ gupnp_didl_lite_create_class_dispose (GObject *object)
 
         priv = GUPNP_DIDL_LITE_CREATE_CLASS (object)->priv;
 
-        g_clear_pointer (&priv->xml_doc, xml_doc_unref);
+        if (priv->xml_doc) {
+                g_object_unref (priv->xml_doc);
+                priv->xml_doc = NULL;
+        }
 
         object_class = G_OBJECT_CLASS
                                    (gupnp_didl_lite_create_class_parent_class);
@@ -201,12 +203,12 @@ gupnp_didl_lite_create_class_class_init (GUPnPDIDLLiteCreateClassClass *klass)
         g_object_class_install_property
                 (object_class,
                  PROP_XML_DOC,
-                 g_param_spec_boxed
+                 g_param_spec_object
                                    ("xml-doc",
                                     "XMLDoc",
                                     "The reference to XML document"
                                     " containing this object.",
-                                    xml_doc_get_type (),
+                                    GUPNP_TYPE_XML_DOC,
                                     G_PARAM_WRITABLE |
                                     G_PARAM_CONSTRUCT_ONLY |
                                     G_PARAM_STATIC_NAME |
@@ -412,12 +414,16 @@ gupnp_didl_lite_create_class_set_friendly_name
  **/
 GUPnPDIDLLiteCreateClass *
 gupnp_didl_lite_create_class_new_from_xml (xmlNode     *xml_node,
-                                           GUPnPAVXMLDoc *xml_doc)
+                                           GUPnPXMLDoc *xml_doc)
 {
+        GUPnPDIDLLiteCreateClass *create_class;
+
         return g_object_new (GUPNP_TYPE_DIDL_LITE_CREATE_CLASS,
                              "xml-node", xml_node,
                              "xml-doc", xml_doc,
                              NULL);
+
+        return create_class;
 }
 
 /**

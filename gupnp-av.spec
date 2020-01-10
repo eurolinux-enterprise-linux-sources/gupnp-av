@@ -1,18 +1,21 @@
 Name:          gupnp-av
-Version:       0.12.10
+Version:       0.12.2
 Release:       1%{?dist}
 Summary:       A collection of helpers for building UPnP AV applications
 
+Group:         System Environment/Libraries
 License:       LGPLv2+
 URL:           http://www.gupnp.org/
 Source0:       http://download.gnome.org/sources/gupnp-av/0.12/%{name}-%{version}.tar.xz
+Patch0:        gupnp-av-fixdso.patch
 
 BuildRequires: glib2-devel
 BuildRequires: gtk-doc
+BuildRequires: gssdp-devel >= 0.14.0
+BuildRequires: gupnp-devel >= 0.20.0
 BuildRequires: gobject-introspection-devel >= 1.36.0
 BuildRequires: libxml2-devel
 BuildRequires: libsoup-devel
-BuildRequires: vala
 
 %description
 GUPnP is an object-oriented open source framework for creating UPnP
@@ -24,13 +27,18 @@ applications using GUPnP.
 
 %package devel
 Summary: Development package for %{name}
-Requires: %{name}%{?_isa} = %{version}-%{release}
+Group: Development/Libraries
+Requires: %{name} = %{version}-%{release}
+Requires: gssdp-devel
+Requires: gupnp-devel
+Requires: pkgconfig
 
 %description devel
 Files for development with %{name}.
 
 %package docs
 Summary: Documentation files for %{name}
+Group: Development/Libraries
 Requires: %{name} = %{version}-%{release}
 BuildArch: noarch
 
@@ -39,20 +47,17 @@ This package contains developer documentation for %{name}.
 
 %prep
 %setup -q
+%patch0 -p1 -b .fixdso
 
 %build
 %configure --disable-static
 make %{?_smp_mflags} V=1
 
 %install
-%make_install
+make install DESTDIR=%{buildroot}
 
 #Remove libtool archives.
-find %{buildroot} -name '*.la' -delete
-rm -rf %{buildroot}/%{_datadir}/vala/
-
-%check
-make check %{?_smp_mflags} V=1
+find %{buildroot} -name '*.la' -exec rm -f {} ';'
 
 %post -p /sbin/ldconfig
 
@@ -74,17 +79,6 @@ make check %{?_smp_mflags} V=1
 %{_datadir}/gtk-doc/html/%{name}
 
 %changelog
-* Thu Mar 02 2017 Bastien Nocera <bnocera@redhat.com> - 0.12.10-1
-+ gupnp-av-0.12.10-1
-- Update to 0.12.10
-Resolves: #1386987
-
-* Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 0.12.2-3
-- Mass rebuild 2014-01-24
-
-* Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 0.12.2-2
-- Mass rebuild 2013-12-27
-
 * Thu May 30 2013 Peter Robinson <pbrobinson@fedoraproject.org> 0.12.2-1
 - 0.12.2 release
 - http://ftp.gnome.org/pub/GNOME/sources/gupnp-av/0.12/gupnp-av-0.12.2.news

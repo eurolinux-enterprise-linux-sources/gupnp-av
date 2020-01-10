@@ -34,10 +34,8 @@
 #include <string.h>
 
 #include "gupnp-didl-lite-resource.h"
-#include "gupnp-didl-lite-resource-private.h"
 #include "xml-util.h"
 #include "time-utils.h"
-#include "xsd-data.h"
 
 G_DEFINE_TYPE (GUPnPDIDLLiteResource,
                gupnp_didl_lite_resource,
@@ -45,9 +43,7 @@ G_DEFINE_TYPE (GUPnPDIDLLiteResource,
 
 struct _GUPnPDIDLLiteResourcePrivate {
         xmlNode     *xml_node;
-        GUPnPAVXMLDoc *xml_doc;
-        xmlNs       *dlna_ns;
-        xmlNs       *pv_ns;
+        GUPnPXMLDoc *xml_doc;
 
         GUPnPProtocolInfo *protocol_info;
 };
@@ -56,16 +52,14 @@ enum {
         PROP_0,
         PROP_XML_NODE,
         PROP_XML_DOC,
-        PROP_DLNA_NAMESPACE,
-        PROP_PV_NAMESPACE,
 
         PROP_URI,
         PROP_IMPORT_URI,
+
         PROP_PROTOCOL_INFO,
 
         PROP_SIZE,
         PROP_SIZE64,
-        PROP_CLEAR_TEXT_SIZE,
         PROP_DURATION,
         PROP_BITRATE,
         PROP_SAMPLE_FREQ,
@@ -78,11 +72,7 @@ enum {
         PROP_HEIGHT,
         PROP_COLOR_DEPTH,
 
-        PROP_UPDATE_COUNT,
-        PROP_TRACK_TOTAL,
-
-        PROP_SUBTITLE_FILE_TYPE,
-        PROP_SUBTITLE_FILE_URI
+        PROP_UPDATE_COUNT
 };
 
 static void
@@ -148,7 +138,7 @@ gupnp_didl_lite_resource_set_property (GObject      *object,
                 resource->priv->xml_node = g_value_get_pointer (value);
                 break;
         case PROP_XML_DOC:
-                resource->priv->xml_doc = g_value_dup_boxed (value);
+                resource->priv->xml_doc = g_value_dup_object (value);
                 break;
         case PROP_URI:
                 gupnp_didl_lite_resource_set_uri (resource,
@@ -170,16 +160,6 @@ gupnp_didl_lite_resource_set_property (GObject      *object,
                 break;
         case PROP_SIZE64:
                 gupnp_didl_lite_resource_set_size64 (resource,
-                                                     g_value_get_int64 (value));
-                break;
-        case PROP_DLNA_NAMESPACE:
-                resource->priv->dlna_ns = g_value_get_pointer (value);
-                break;
-        case PROP_PV_NAMESPACE:
-                resource->priv->pv_ns = g_value_get_pointer (value);
-                break;
-        case PROP_CLEAR_TEXT_SIZE:
-                gupnp_didl_lite_resource_set_cleartext_size (resource,
                                                      g_value_get_int64 (value));
                 break;
         case PROP_DURATION:
@@ -229,21 +209,6 @@ gupnp_didl_lite_resource_set_property (GObject      *object,
                                         (resource,
                                          g_value_get_uint (value));
                 break;
-        case PROP_TRACK_TOTAL:
-                gupnp_didl_lite_resource_set_track_total
-                                        (resource,
-                                         g_value_get_uint (value));
-                break;
-        case PROP_SUBTITLE_FILE_TYPE:
-                gupnp_didl_lite_resource_set_subtitle_file_type
-                                        (resource,
-                                         g_value_get_string (value));
-                break;
-        case PROP_SUBTITLE_FILE_URI:
-                gupnp_didl_lite_resource_set_subtitle_file_uri
-                                        (resource,
-                                         g_value_get_string (value));
-                break;
         default:
                 G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
                 break;
@@ -288,21 +253,6 @@ gupnp_didl_lite_resource_get_property (GObject    *object,
         case PROP_SIZE64:
                 g_value_set_int64 (value,
                                    gupnp_didl_lite_resource_get_size64 (resource));
-                break;
-        case PROP_DLNA_NAMESPACE:
-                g_value_set_pointer
-                        (value,
-                         gupnp_didl_lite_resource_get_dlna_namespace (resource));
-                break;
-        case PROP_PV_NAMESPACE:
-                g_value_set_pointer
-                        (value,
-                         gupnp_didl_lite_resource_get_pv_namespace (resource));
-                break;
-        case PROP_CLEAR_TEXT_SIZE:
-                g_value_set_int64
-                         (value,
-                          gupnp_didl_lite_resource_get_cleartext_size (resource));
                 break;
         case PROP_DURATION:
                 g_value_set_long
@@ -355,23 +305,6 @@ gupnp_didl_lite_resource_get_property (GObject    *object,
                          (value,
                           gupnp_didl_lite_resource_get_update_count (resource));
                 break;
-        case PROP_TRACK_TOTAL:
-                g_value_set_uint
-                         (value,
-                          gupnp_didl_lite_resource_get_track_total (resource));
-                break;
-        case PROP_SUBTITLE_FILE_TYPE:
-                g_value_set_string
-                         (value,
-                          gupnp_didl_lite_resource_get_subtitle_file_type
-                                                (resource));
-                break;
-        case PROP_SUBTITLE_FILE_URI:
-                g_value_set_string
-                         (value,
-                          gupnp_didl_lite_resource_get_subtitle_file_uri
-                                                (resource));
-                break;
         default:
                 G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
                 break;
@@ -386,7 +319,10 @@ gupnp_didl_lite_resource_dispose (GObject *object)
 
         priv = GUPNP_DIDL_LITE_RESOURCE (object)->priv;
 
-        g_clear_pointer (&priv->xml_doc, xml_doc_unref);
+        if (priv->xml_doc) {
+                g_object_unref (priv->xml_doc);
+                priv->xml_doc = NULL;
+        }
 
         if (priv->protocol_info != NULL) {
                 g_object_unref (priv->protocol_info);
@@ -440,11 +376,11 @@ gupnp_didl_lite_resource_class_init (GUPnPDIDLLiteResourceClass *klass)
         g_object_class_install_property
                 (object_class,
                  PROP_XML_DOC,
-                 g_param_spec_boxed ("xml-doc",
+                 g_param_spec_object ("xml-doc",
                                       "XMLDoc",
                                       "The reference to XML document"
                                       " containing this object.",
-                                      xml_doc_get_type (),
+                                      GUPNP_TYPE_XML_DOC,
                                       G_PARAM_WRITABLE |
                                       G_PARAM_CONSTRUCT_ONLY |
                                       G_PARAM_STATIC_NAME |
@@ -541,63 +477,6 @@ gupnp_didl_lite_resource_class_init (GUPnPDIDLLiteResourceClass *klass)
                                      G_PARAM_STATIC_NAME |
                                      G_PARAM_STATIC_NICK |
                                      G_PARAM_STATIC_BLURB));
-
-        /**
-         * GUPnPDIDLLiteResource:clearTextsize:
-         *
-         * The size (in bytes) of this resource.
-         **/
-        g_object_class_install_property
-                (object_class,
-                 PROP_CLEAR_TEXT_SIZE,
-                 g_param_spec_int64 ("cleartext-size",
-                                    "ClearTextSize",
-                                    "The clear text size (in bytes) of this resource.",
-                                    -1,
-                                    G_MAXLONG,
-                                    -1,
-                                    G_PARAM_READWRITE |
-                                    G_PARAM_STATIC_NAME |
-                                    G_PARAM_STATIC_NICK |
-                                    G_PARAM_STATIC_BLURB));
-
-        /**
-         * GUPnPDIDLLiteResource:dlna-namespace:
-         *
-         * Pointer to the DLNA metadata namespace registered with the
-         * resource object.
-         *
-         **/
-        g_object_class_install_property
-                (object_class,
-                 PROP_DLNA_NAMESPACE,
-                 g_param_spec_pointer ("dlna-namespace",
-                                       "XML namespace",
-                                       "Pointer to the DLNA metadata namespace "
-                                       "registered with the resource.",
-                                       G_PARAM_READWRITE |
-                                       G_PARAM_CONSTRUCT_ONLY |
-                                       G_PARAM_STATIC_NAME |
-                                       G_PARAM_STATIC_NICK |
-                                       G_PARAM_STATIC_BLURB));
-
-        /**
-         * GUPnPDIDLLiteResource:pv-namespace:
-         *
-         * Pointer to the PV metadata namespace registered with the
-         * resource object.
-         *
-         **/
-        g_object_class_install_property
-                (object_class,
-                 PROP_PV_NAMESPACE,
-                 g_param_spec_pointer ("pv-namespace",
-                                       "XML namespace",
-                                       "Pointer to the PV metadata namespace "
-                                       "registered with the resource.",
-                                       G_PARAM_READWRITE |
-                                       G_PARAM_CONSTRUCT_ONLY |
-                                       G_PARAM_STATIC_STRINGS));
 
         /**
          * GUPnPDIDLLiteResource:duration:
@@ -790,55 +669,6 @@ gupnp_didl_lite_resource_class_init (GUPnPDIDLLiteResourceClass *klass)
                                            G_PARAM_STATIC_NAME |
                                            G_PARAM_STATIC_NICK |
                                            G_PARAM_STATIC_BLURB));
-        /**
-         * GUPnPDIDLLiteResource:track-total:
-         *
-         * Number of tracks in a DIDL_S or DIDL_V resource.
-         **/
-        g_object_class_install_property
-                       (object_class,
-                        PROP_TRACK_TOTAL,
-                        g_param_spec_uint ("track-total",
-                                           "TrackTotal",
-                                           "The number of tracks of this "
-                                           "resource.",
-                                           0,
-                                           G_MAXUINT,
-                                           0,
-                                           G_PARAM_READWRITE |
-                                           G_PARAM_STATIC_STRINGS));
-
-        /**
-         * GUPnPDIDLLiteResource:subtitle-file-type:
-         *
-         * Type of external subtitle file. Usually SRT or SMI.
-         **/
-        g_object_class_install_property
-                        (object_class,
-                         PROP_SUBTITLE_FILE_TYPE,
-                         g_param_spec_string ("subtitle-file-type",
-                                              "Subtitle file type",
-                                              "Type of the external subtitle "
-                                              "file",
-                                              NULL,
-                                              G_PARAM_READWRITE |
-                                              G_PARAM_STATIC_STRINGS));
-
-        /**
-         * GUPnPDIDLLiteResource:subtitle-file-uri:
-         *
-         * Uri to external subtitle file.
-         **/
-        g_object_class_install_property
-                        (object_class,
-                         PROP_SUBTITLE_FILE_TYPE,
-                         g_param_spec_string ("subtitle-file-uri",
-                                              "Subtitle file uri",
-                                              "Uri of the external subtitle "
-                                              "file",
-                                              NULL,
-                                              G_PARAM_READWRITE |
-                                              G_PARAM_STATIC_STRINGS));
 }
 
 /**
@@ -851,17 +681,17 @@ gupnp_didl_lite_resource_class_init (GUPnPDIDLLiteResourceClass *klass)
  * Return value: A new #GUPnPDIDLLiteResource object. Unref after usage.
  **/
 GUPnPDIDLLiteResource *
-gupnp_didl_lite_resource_new_from_xml (xmlNode       *xml_node,
-                                       GUPnPAVXMLDoc *xml_doc,
-                                       xmlNs         *dlna_ns,
-                                       xmlNs         *pv_ns)
+gupnp_didl_lite_resource_new_from_xml (xmlNode     *xml_node,
+                                       GUPnPXMLDoc *xml_doc)
 {
+        GUPnPDIDLLiteResource *resource;
+
         return g_object_new (GUPNP_TYPE_DIDL_LITE_RESOURCE,
                              "xml-node", xml_node,
                              "xml-doc", xml_doc,
-                             "dlna-namespace", dlna_ns,
-                             "pv-namespace", pv_ns,
                              NULL);
+
+        return resource;
 }
 
 /**
@@ -879,41 +709,6 @@ gupnp_didl_lite_resource_get_xml_node (GUPnPDIDLLiteResource *resource)
 
         return resource->priv->xml_node;
 }
-
-/**
- * gupnp_didl_lite_resource_get_dlna_namespace:
- * @resource: The #GUPnPDIDLLiteObject
- *
- * Get the pointer to the DLNA metadata namespace registered with the XML
- * document containing this object.
- *
- * Returns: (transfer none): The pointer to DLNA namespace in XML document.
- **/
-xmlNsPtr
-gupnp_didl_lite_resource_get_dlna_namespace (GUPnPDIDLLiteResource *resource)
-{
-        g_return_val_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource), NULL);
-
-        return resource->priv->dlna_ns;
-}
-
-/**
- * gupnp_didl_lite_resource_get_pv_namespace:
- * @resource: The #GUPnPDIDLLiteObject
- *
- * Get the pointer to the DLNA metadata namespace registered with the XML
- * document containing this object.
- *
- * Returns: (transfer none): The pointer to DLNA namespace in XML document.
- **/
-xmlNsPtr
-gupnp_didl_lite_resource_get_pv_namespace (GUPnPDIDLLiteResource *resource)
-{
-        g_return_val_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource), NULL);
-
-        return resource->priv->pv_ns;
-}
-
 
 /**
  * gupnp_didl_lite_resource_get_uri:
@@ -975,8 +770,7 @@ gupnp_didl_lite_resource_get_protocol_info (GUPnPDIDLLiteResource *resource)
         protocol_info = xml_util_get_attribute_content
                                         (resource->priv->xml_node,
                                          "protocolInfo");
-        if (protocol_info == NULL)
-                return NULL;
+        g_return_val_if_fail (protocol_info != NULL, NULL);
 
         error = NULL;
         info = gupnp_protocol_info_new_from_string (protocol_info, &error);
@@ -1025,23 +819,6 @@ gupnp_didl_lite_resource_get_size64 (GUPnPDIDLLiteResource *resource)
                                              -1);
 }
 
-/**
- * gupnp_didl_lite_resource_get_cleartext_size:
- * @resource: A #GUPnPDIDLLiteResource
- *
- * Get the size (in bytes) of the @resource.
- *
- * Return value: The size (in bytes) of the @resource or -1.
- **/
-gint64
-gupnp_didl_lite_resource_get_cleartext_size (GUPnPDIDLLiteResource *resource)
-{
-        g_return_val_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource), -1);
-
-        return xml_util_get_int64_attribute (resource->priv->xml_node,
-                                             "cleartextSize",
-                                             -1);
-}
 
 /**
  * gupnp_didl_lite_resource_get_duration:
@@ -1232,24 +1009,6 @@ gupnp_didl_lite_resource_get_update_count (GUPnPDIDLLiteResource *resource)
 }
 
 /**
- * gupnp_didl_lite_resource_get_track_total:
- * @resource: A #GUPnPDIDLLiteResource
- *
- * Get the total track count of this resource.
- *
- * Return value: The total track count of the @resource.
- **/
-guint
-gupnp_didl_lite_resource_get_track_total (GUPnPDIDLLiteResource *resource)
-{
-        g_return_val_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource), 0);
-
-        return xml_util_get_uint_attribute (resource->priv->xml_node,
-                                            "trackTotal",
-                                            -1);
-}
-
-/**
  * gupnp_didl_lite_resource_update_count_is_set:
  * @resource: A #GUPnPDIDLLiteResource
  *
@@ -1270,32 +1029,13 @@ gupnp_didl_lite_resource_update_count_is_set (GUPnPDIDLLiteResource *resource)
 }
 
 /**
- * gupnp_didl_lite_resource_track_total_is_set:
- * @resource: A #GUPnPDIDLLiteResource
- *
- * Check whether the total track count property of this resource is set.
- *
- * Return value: %TRUE if set, otherwise %FALSE.
- **/
-gboolean
-gupnp_didl_lite_resource_track_total_is_set (GUPnPDIDLLiteResource *resource)
-{
-        const char *content;
-
-        g_return_val_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource), FALSE);
-
-        content = xml_util_get_attribute_content (resource->priv->xml_node,
-                                                  "trackTotal");
-        return content != NULL;
-}
-
-
-/**
  * gupnp_didl_lite_resource_set_uri:
  * @resource: A #GUPnPDIDLLiteResource
  * @uri: The URI as string
  *
  * Set the URI associated with the @resource.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_uri (GUPnPDIDLLiteResource *resource,
@@ -1320,6 +1060,8 @@ gupnp_didl_lite_resource_set_uri (GUPnPDIDLLiteResource *resource,
  * @import_uri: The URI as string
  *
  * Set the import URI associated with the @resource.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_import_uri (GUPnPDIDLLiteResource *resource,
@@ -1340,6 +1082,8 @@ gupnp_didl_lite_resource_set_import_uri (GUPnPDIDLLiteResource *resource,
  * @info: The protocol string
  *
  * Set the protocol info associated with the @resource.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_protocol_info (GUPnPDIDLLiteResource *resource,
@@ -1383,6 +1127,8 @@ gupnp_didl_lite_resource_set_protocol_info (GUPnPDIDLLiteResource *resource,
  *
  * Set the size (in bytes) of the @resource. Passing a negative number will
  * unset this property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_size (GUPnPDIDLLiteResource *resource,
@@ -1398,6 +1144,8 @@ gupnp_didl_lite_resource_set_size (GUPnPDIDLLiteResource *resource,
  *
  * Set the size (in bytes) of the @resource. Passing a negative number will
  * unset this property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_size64 (GUPnPDIDLLiteResource *resource,
@@ -1422,42 +1170,6 @@ gupnp_didl_lite_resource_set_size64 (GUPnPDIDLLiteResource *resource,
         g_object_notify (G_OBJECT (resource), "size");
 }
 
-/**
- * gupnp_didl_lite_resource_set_cleartext_size:
- * @resource: A #GUPnPDIDLLiteResource
- * @cleartext_size: The size (in bytes)
- *
- * Set the size (in bytes) of the @resource. Passing a negative number will
- * unset this property.
- **/
-void
-gupnp_didl_lite_resource_set_cleartext_size
-                                        (GUPnPDIDLLiteResource *resource,
-                                         gint64                 cleartext_size)
-{
-        g_return_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource));
-
-        if (cleartext_size < 0)
-                xmlUnsetNsProp (resource->priv->xml_node,
-                                resource->priv->dlna_ns,
-                                (unsigned char *) "cleartextSize");
-        else {
-                char *str;
-                str = g_strdup_printf ("%" G_GINT64_FORMAT, cleartext_size);
-                xml_util_get_ns (resource->priv->xml_doc->doc,
-                                 GUPNP_XML_NAMESPACE_DLNA,
-                                 &(resource->priv->dlna_ns));
-
-                xmlSetNsProp (resource->priv->xml_node,
-                              resource->priv->dlna_ns,
-                              (unsigned char *) "cleartextSize",
-                              (unsigned char *) str);
-
-                g_free (str);
-        }
-
-        g_object_notify (G_OBJECT (resource), "cleartext-size");
-}
 
 /**
  * gupnp_didl_lite_resource_set_duration:
@@ -1466,6 +1178,8 @@ gupnp_didl_lite_resource_set_cleartext_size
  *
  * Set the duration (in seconds) of the @resource. Passing a negative number
  * will unset this property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_duration (GUPnPDIDLLiteResource *resource,
@@ -1496,6 +1210,8 @@ gupnp_didl_lite_resource_set_duration (GUPnPDIDLLiteResource *resource,
  *
  * Set the bitrate (in bytes per second) of the @resource. Passing a negative
  * number will unset this property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_bitrate (GUPnPDIDLLiteResource *resource,
@@ -1526,6 +1242,8 @@ gupnp_didl_lite_resource_set_bitrate (GUPnPDIDLLiteResource *resource,
  *
  * Set the sample frequency of the @resource. Passing a negative number will
  * unset this property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_sample_freq (GUPnPDIDLLiteResource *resource,
@@ -1556,6 +1274,8 @@ gupnp_didl_lite_resource_set_sample_freq (GUPnPDIDLLiteResource *resource,
  *
  * Set the sample size of the @resource. Passing a negative number will unset
  * this property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_bits_per_sample
@@ -1587,6 +1307,8 @@ gupnp_didl_lite_resource_set_bits_per_sample
  *
  * Set the protection system used by the @resource. Passing a negative number
  * will unset this property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_protection (GUPnPDIDLLiteResource *resource,
@@ -1608,6 +1330,8 @@ gupnp_didl_lite_resource_set_protection (GUPnPDIDLLiteResource *resource,
  *
  * Set the number of audio channels in the @resource. Passing a negative number
  * will unset this property.
+ *
+ * Return value: The number of audio channels in the @resource or -1.
  **/
 void
 gupnp_didl_lite_resource_set_audio_channels (GUPnPDIDLLiteResource *resource,
@@ -1638,6 +1362,8 @@ gupnp_didl_lite_resource_set_audio_channels (GUPnPDIDLLiteResource *resource,
  *
  * Set the width of this image/video resource. Setting both width and height to
  * a negative number will unset the resolution property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_width (GUPnPDIDLLiteResource *resource,
@@ -1671,6 +1397,8 @@ gupnp_didl_lite_resource_set_width (GUPnPDIDLLiteResource *resource,
  *
  * Set the height of this image/video resource. Setting both width and height to
  * a negative number will unset the resolution property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_height (GUPnPDIDLLiteResource *resource,
@@ -1705,6 +1433,8 @@ gupnp_didl_lite_resource_set_height (GUPnPDIDLLiteResource *resource,
  *
  * Set the color-depth of this image/video resource. Passing a negative number
  * will unset this property.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_color_depth (GUPnPDIDLLiteResource *resource,
@@ -1734,6 +1464,8 @@ gupnp_didl_lite_resource_set_color_depth (GUPnPDIDLLiteResource *resource,
  * @update_count: The update_count
  *
  * Set the update count of this resource.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_set_update_count (GUPnPDIDLLiteResource *resource,
@@ -1753,40 +1485,12 @@ gupnp_didl_lite_resource_set_update_count (GUPnPDIDLLiteResource *resource,
 }
 
 /**
- * gupnp_didl_lite_resource_set_track_total:
- * @resource: A #GUPnPDIDLLiteResource
- * @track_total: The total number of tracks in this resource
- *
- * Set the total number of tracks in this resource.
- **/
-void
-gupnp_didl_lite_resource_set_track_total (GUPnPDIDLLiteResource *resource,
-                                          guint                  track_total)
-{
-        char *str;
-
-        g_return_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource));
-
-        xml_util_get_ns (resource->priv->xml_doc->doc,
-                         GUPNP_XML_NAMESPACE_DLNA,
-                         &(resource->priv->dlna_ns));
-
-        str = g_strdup_printf ("%u", track_total);
-        xmlSetNsProp (resource->priv->xml_node,
-                      resource->priv->dlna_ns,
-                      (unsigned char *) "trackTotal",
-                      (unsigned char *) str);
-        g_free (str);
-
-        g_object_notify (G_OBJECT (resource), "track-total");
-}
-
-
-/**
  * gupnp_didl_lite_resource_unset_update_count:
  * @resource: A #GUPnPDIDLLiteResource
  *
  * Unset the update count of this resource.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_resource_unset_update_count (GUPnPDIDLLiteResource *resource)
@@ -1797,129 +1501,4 @@ gupnp_didl_lite_resource_unset_update_count (GUPnPDIDLLiteResource *resource)
                       (unsigned char *) "updateCount");
 
         g_object_notify (G_OBJECT (resource), "update-count");
-}
-
-/**
- * gupnp_didl_lite_resource_unset_track_total:
- * @resource: A #GUPnPDIDLLiteResource
- *
- * Unset the total track count of this resource.
- **/
-void
-gupnp_didl_lite_resource_unset_track_total (GUPnPDIDLLiteResource *resource)
-{
-        g_return_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource));
-
-        xmlUnsetNsProp (resource->priv->xml_node,
-                        resource->priv->dlna_ns,
-                        (unsigned char *) "trackTotal");
-
-        g_object_notify (G_OBJECT (resource), "track-total");
-}
-
-/**
- * gupnp_didl_lite_resource_get_subtitle_file_uri:
- * @resource: A #GUPnPDIDLLiteResource
- *
- * Returns: The content of the subtitleFileUri property or %NULL when not set.
- *
- * Since: 0.12.4
- **/
-const char *
-gupnp_didl_lite_resource_get_subtitle_file_uri
-                                        (GUPnPDIDLLiteResource *resource)
-{
-        g_return_val_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource), NULL);
-
-        return xml_util_get_attribute_content (resource->priv->xml_node,
-                                               "subtitleFileUri");
-}
-
-/**
- * gupnp_didl_lite_resource_get_subtitle_file_type:
- * @resource: A #GUPnPDIDLLiteResource
- *
- * Returns: The content of the subtitleFileType property or %NULL
- *
- * Since: 0.12.4
- **/
-const char *
-gupnp_didl_lite_resource_get_subtitle_file_type
-                                        (GUPnPDIDLLiteResource *resource)
-{
-        g_return_val_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource), NULL);
-
-        return xml_util_get_attribute_content (resource->priv->xml_node,
-                                               "subtitleFileType");
-}
-
-/**
- * gupnp_didl_lite_resource_set_subtitle_file_uri:
- * @resource: A #GUPnPDIDLLiteResource
- * @uri: (allow-none):  An URI to an external subtitle file or %NULL to remove.
- *
- * Set the URI of an external subtitle file to be used with this resource.
- * When @uri is %NULL the value is removed.
- *
- * Since: 0.12.4
- **/
-void
-gupnp_didl_lite_resource_set_subtitle_file_uri
-                                        (GUPnPDIDLLiteResource *resource,
-                                         const char            *uri)
-{
-        g_return_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource));
-
-        if (uri == NULL)
-                xmlUnsetNsProp (resource->priv->xml_node,
-                                resource->priv->pv_ns,
-                                (unsigned char *) "subtitleFileUri");
-        else {
-                xml_util_get_ns (resource->priv->xml_doc->doc,
-                                 GUPNP_XML_NAMESPACE_PV,
-                                 &(resource->priv->pv_ns));
-                xmlSetNsProp (resource->priv->xml_node,
-                              resource->priv->pv_ns,
-                              (unsigned char *) "subtitleFileUri",
-                              (unsigned char *) uri);
-        }
-
-        g_object_notify (G_OBJECT (resource), "subtitle-file-uri");
-}
-
-/**
- * gupnp_didl_lite_resource_set_subtitle_file_type:
- * @resource: A #GUPnPDIDLLiteResource
- * @type: (allow-none): An URI to an external subtitle file
- *
- * Set the type of an external subtitle file, specified via
- * pv:subtitleFileUri using gupnp_didl_lite_resource_set_subtitle_file_uri().
- *
- * When @type is %NULL the value is removed.
- *
- * Since: 0.12.4
- **/
-void
-gupnp_didl_lite_resource_set_subtitle_file_type
-                                        (GUPnPDIDLLiteResource *resource,
-                                         const char            *type)
-{
-        g_return_if_fail (GUPNP_IS_DIDL_LITE_RESOURCE (resource));
-
-        if (type == NULL)
-                xmlUnsetNsProp (resource->priv->xml_node,
-                                resource->priv->pv_ns,
-                                (unsigned char *) "subtitleFileUri");
-        else {
-                xml_util_get_ns (resource->priv->xml_doc->doc,
-                                 GUPNP_XML_NAMESPACE_PV,
-                                 &(resource->priv->pv_ns));
-
-                xmlSetNsProp (resource->priv->xml_node,
-                              resource->priv->pv_ns,
-                              (unsigned char *) "subtitleFileType",
-                              (unsigned char *) type);
-        }
-
-        g_object_notify (G_OBJECT (resource), "subtitle-file-type");
 }

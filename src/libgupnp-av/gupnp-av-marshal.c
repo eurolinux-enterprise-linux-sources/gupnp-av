@@ -74,9 +74,9 @@ gupnp_av_marshal_BOOLEAN__STRING_UINT_STRING_POINTER (GClosure     *closure,
                                                                         gpointer     arg_3,
                                                                         gpointer     arg_4,
                                                                         gpointer     data2);
-  GMarshalFunc_BOOLEAN__STRING_UINT_STRING_POINTER callback;
-  GCClosure *cc = (GCClosure*) closure;
-  gpointer data1, data2;
+  register GMarshalFunc_BOOLEAN__STRING_UINT_STRING_POINTER callback;
+  register GCClosure *cc = (GCClosure*) closure;
+  register gpointer data1, data2;
   gboolean v_return;
 
   g_return_if_fail (return_value != NULL);

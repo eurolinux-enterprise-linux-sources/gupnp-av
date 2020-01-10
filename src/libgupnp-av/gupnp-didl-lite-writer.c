@@ -43,13 +43,12 @@ G_DEFINE_TYPE (GUPnPDIDLLiteWriter,
                G_TYPE_OBJECT);
 
 struct _GUPnPDIDLLiteWriterPrivate {
-        xmlNode       *xml_node;
-        GUPnPAVXMLDoc *xml_doc;
+        xmlNode     *xml_node;
+        GUPnPXMLDoc *xml_doc;
 
         xmlNs       *upnp_ns;
         xmlNs       *dc_ns;
         xmlNs       *dlna_ns;
-        xmlNs       *pv_ns;
 
         char        *language;
 };
@@ -222,9 +221,9 @@ filter_node (xmlNode             *node,
                 filter_attributes (node, allowed);
 
         if (strcmp ((const char *) node->name, "container") == 0) {
-                is_container = TRUE;
-                container_class = xml_util_get_child_element_content (node,
-                                                                      "class");
+            is_container = TRUE;
+            container_class = xml_util_get_child_element_content (node,
+                                                                  "class");
         }
 
         forbidden = NULL;
@@ -362,16 +361,32 @@ gupnp_didl_lite_writer_constructed (GObject *object)
         priv = GUPNP_DIDL_LITE_WRITER (object)->priv;
 
         doc = xmlNewDoc ((unsigned char *) "1.0");
-        priv->xml_doc = xml_doc_new (doc);
+        priv->xml_doc = gupnp_xml_doc_new (doc);
 
         priv->xml_node = xmlNewDocNode (priv->xml_doc->doc,
                                         NULL,
                                         (unsigned char *) "DIDL-Lite",
                                         NULL);
         xmlDocSetRootElement (priv->xml_doc->doc, priv->xml_node);
-
-        xml_util_create_namespace (priv->xml_node,
-                                   GUPNP_XML_NAMESPACE_DIDL_LITE);
+        priv->dc_ns = xmlNewNs (priv->xml_node,
+                                (unsigned char *)
+                                "http://purl.org/dc/elements/1.1/",
+                                (unsigned char *)
+                                GUPNP_DIDL_LITE_WRITER_NAMESPACE_DC);
+        priv->upnp_ns = xmlNewNs (priv->xml_node,
+                                  (unsigned char *)
+                                  "urn:schemas-upnp-org:metadata-1-0/upnp/",
+                                  (unsigned char *)
+                                  GUPNP_DIDL_LITE_WRITER_NAMESPACE_UPNP);
+        priv->dlna_ns = xmlNewNs (priv->xml_node,
+                                  (unsigned char *)
+                                  "urn:schemas-dlna-org:metadata-1-0/",
+                                  (unsigned char *)
+                                  GUPNP_DIDL_LITE_WRITER_NAMESPACE_DLNA);
+        xmlNewNs (priv->xml_node,
+                  (unsigned char *)
+                  "urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/",
+                  NULL);
 
         if (priv->language)
                 xmlSetProp (priv->xml_node,
@@ -391,7 +406,10 @@ gupnp_didl_lite_writer_dispose (GObject *object)
 
         priv = GUPNP_DIDL_LITE_WRITER (object)->priv;
 
-        g_clear_pointer (&priv->xml_doc, xml_doc_unref);
+        if (priv->xml_doc) {
+                g_object_unref (priv->xml_doc);
+                priv->xml_doc = NULL;
+        }
 
         object_class = G_OBJECT_CLASS (gupnp_didl_lite_writer_parent_class);
         object_class->dispose (object);
@@ -467,10 +485,7 @@ gupnp_didl_lite_writer_class_init (GUPnPDIDLLiteWriterClass *klass)
 
 /**
  * gupnp_didl_lite_writer_new:
- * @language: (allow-none):The language the DIDL-Lite fragment is in, or %NULL
- *
- * Note: @language should always be set to %NULL, DLNA does not support the
- * language parameter.
+ * @language: (allow-none):The language the DIDL-Lite fragment is in, or NULL
  *
  * Return value: A new #GUPnPDIDLLiteWriter object.
  **/
@@ -507,8 +522,7 @@ gupnp_didl_lite_writer_add_item (GUPnPDIDLLiteWriter *writer)
                                                       writer->priv->xml_doc,
                                                       writer->priv->upnp_ns,
                                                       writer->priv->dc_ns,
-                                                      writer->priv->dlna_ns,
-                                                      writer->priv->pv_ns);
+                                                      writer->priv->dlna_ns);
         return GUPNP_DIDL_LITE_ITEM (object);
 }
 
@@ -545,8 +559,7 @@ gupnp_didl_lite_writer_add_container_child_item
                                                       writer->priv->xml_doc,
                                                       writer->priv->upnp_ns,
                                                       writer->priv->dc_ns,
-                                                      writer->priv->dlna_ns,
-                                                      writer->priv->pv_ns);
+                                                      writer->priv->dlna_ns);
         return GUPNP_DIDL_LITE_ITEM (object);
 }
 
@@ -575,8 +588,7 @@ gupnp_didl_lite_writer_add_container (GUPnPDIDLLiteWriter *writer)
                                                       writer->priv->xml_doc,
                                                       writer->priv->upnp_ns,
                                                       writer->priv->dc_ns,
-                                                      writer->priv->dlna_ns,
-                                                      writer->priv->pv_ns);
+                                                      writer->priv->dlna_ns);
         return GUPNP_DIDL_LITE_CONTAINER (object);
 }
 
@@ -675,6 +687,8 @@ gupnp_didl_lite_writer_get_language (GUPnPDIDLLiteWriter *writer)
  * argument of Browse or Search actions from a ContentDirectory control point.
  * Please refer to Section 2.3.15 of UPnP AV ContentDirectory version 3
  * specification for details on this string.
+ *
+ * Return value: None.
  **/
 void
 gupnp_didl_lite_writer_filter (GUPnPDIDLLiteWriter *writer,

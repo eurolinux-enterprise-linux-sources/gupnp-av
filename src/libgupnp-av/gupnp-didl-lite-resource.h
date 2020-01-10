@@ -31,6 +31,7 @@
 #include <glib-object.h>
 #include <glib.h>
 #include <libxml/tree.h>
+#include <libgupnp/gupnp.h>
 
 #include "gupnp-dlna.h"
 #include "gupnp-protocol-info.h"
@@ -101,11 +102,6 @@ gupnp_didl_lite_resource_set_size64     (GUPnPDIDLLiteResource *resource,
                                          gint64                 size);
 
 void
-gupnp_didl_lite_resource_set_cleartext_size
-                                        (GUPnPDIDLLiteResource *resource,
-                                         gint64                 cleartext_size);
-
-void
 gupnp_didl_lite_resource_set_duration   (GUPnPDIDLLiteResource *resource,
                                          glong                  duration);
 
@@ -151,37 +147,11 @@ gupnp_didl_lite_resource_set_update_count
                                          guint                  update_count);
 
 void
-gupnp_didl_lite_resource_set_track_total
-                                        (GUPnPDIDLLiteResource *resource,
-                                         guint                  track_total);
-void
-gupnp_didl_lite_resource_unset_track_total
-                                        (GUPnPDIDLLiteResource *resource);
-
-void
 gupnp_didl_lite_resource_unset_update_count
                                         (GUPnPDIDLLiteResource *resource);
 
-void
-gupnp_didl_lite_resource_set_subtitle_file_uri
-                                        (GUPnPDIDLLiteResource *resource,
-                                         const char            *uri);
-
-void
-gupnp_didl_lite_resource_set_subtitle_file_type
-                                        (GUPnPDIDLLiteResource *resource,
-                                         const char            *type);
-
 xmlNode *
 gupnp_didl_lite_resource_get_xml_node   (GUPnPDIDLLiteResource *resource);
-
-xmlNsPtr
-gupnp_didl_lite_resource_get_dlna_namespace
-                                        (GUPnPDIDLLiteResource *resource);
-
-xmlNsPtr
-gupnp_didl_lite_resource_get_pv_namespace
-                                        (GUPnPDIDLLiteResource *resource);
 
 const char *
 gupnp_didl_lite_resource_get_uri        (GUPnPDIDLLiteResource *resource);
@@ -198,10 +168,6 @@ gupnp_didl_lite_resource_get_size       (GUPnPDIDLLiteResource *resource);
 
 gint64
 gupnp_didl_lite_resource_get_size64     (GUPnPDIDLLiteResource *resource);
-
-gint64
-gupnp_didl_lite_resource_get_cleartext_size
-                                        (GUPnPDIDLLiteResource *resource);
 
 long
 gupnp_didl_lite_resource_get_duration   (GUPnPDIDLLiteResource *resource);
@@ -242,21 +208,6 @@ gboolean
 gupnp_didl_lite_resource_update_count_is_set
                                         (GUPnPDIDLLiteResource *resource);
 
-guint
-gupnp_didl_lite_resource_get_track_total
-                                        (GUPnPDIDLLiteResource *resource);
-
-gboolean
-gupnp_didl_lite_resource_track_total_is_set
-                                        (GUPnPDIDLLiteResource *resource);
-
-const char *
-gupnp_didl_lite_resource_get_subtitle_file_uri
-                                        (GUPnPDIDLLiteResource *resource);
-
-const char *
-gupnp_didl_lite_resource_get_subtitle_file_type
-                                        (GUPnPDIDLLiteResource *resource);
 G_END_DECLS
 
 #endif /* __GUPNP_DIDL_LITE_RESOURCE_H__ */

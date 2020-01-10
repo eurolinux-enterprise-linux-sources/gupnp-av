@@ -207,7 +207,7 @@ gupnp_didl_lite_item_set_lifetime (GUPnPDIDLLiteItem *item,
 {
         xmlNode *node = NULL;
         xmlNs *ns = NULL;
-        GUPnPAVXMLDoc *doc = NULL;
+        GUPnPXMLDoc *doc = NULL;
         GUPnPDIDLLiteObject *object = NULL;
 
         g_return_if_fail (GUPNP_IS_DIDL_LITE_ITEM (item));
@@ -223,12 +223,7 @@ gupnp_didl_lite_item_set_lifetime (GUPnPDIDLLiteItem *item,
                 char *str;
 
                 str = seconds_to_time (lifetime);
-                xml_util_set_child (node,
-                                    GUPNP_XML_NAMESPACE_DLNA,
-                                    &ns,
-                                    doc->doc,
-                                    "lifetime",
-                                    str);
+                xml_util_set_child (node, ns, doc->doc, "lifetime", str);
                 g_free (str);
         }
 

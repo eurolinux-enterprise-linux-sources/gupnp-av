@@ -73,22 +73,16 @@ verify_didl_attributes (xmlNode *node)
                 }
         }
 
-        if (xml_util_get_attribute_content (node, "restricted") != NULL) {
-                return xml_util_verify_attribute_is_boolean (node,
-                                                             "restricted");
-        }
-
-        return TRUE;
+        return xml_util_verify_attribute_is_boolean (node, "restricted");
 }
 
 static gboolean
 parse_elements (GUPnPDIDLLiteParser *parser,
                 xmlNode             *node,
-                GUPnPAVXMLDoc       *xml_doc,
+                GUPnPXMLDoc         *xml_doc,
                 xmlNs               *upnp_ns,
                 xmlNs               *dc_ns,
                 xmlNs               *dlna_ns,
-                xmlNs               *pv_ns,
                 gboolean             recursive,
                 GError             **error);
 
@@ -217,7 +211,7 @@ gupnp_didl_lite_parser_parse_didl (GUPnPDIDLLiteParser *parser,
  * gupnp_didl_lite_parser_parse_didl_recursive:
  * @parser: A #GUPnPDIDLLiteParser
  * @didl: The DIDL-Lite XML string to be parsed
- * @error: The location where to store any error, or %NULL
+ * @error: The location where to store any error, or NULL
  *
  * Parses DIDL-Lite XML string @didl, emitting the ::object-available,
  * ::item-available and ::container-available signals appropriately during the
@@ -231,20 +225,20 @@ gupnp_didl_lite_parser_parse_didl_recursive (GUPnPDIDLLiteParser *parser,
                                              gboolean             recursive,
                                              GError             **error)
 {
-        xmlDoc        *doc;
-        xmlNode       *element;
-        xmlNs         *upnp_ns = NULL;
-        xmlNs         *dc_ns   = NULL;
-        xmlNs         *dlna_ns = NULL;
-        xmlNs         *pv_ns   = NULL;
-        GUPnPAVXMLDoc *xml_doc = NULL;
-        gboolean       result;
+        xmlDoc       *doc;
+        xmlNode      *element;
+        xmlNs       **ns_list;
+        xmlNs        *upnp_ns = NULL;
+        xmlNs        *dc_ns   = NULL;
+        xmlNs        *dlna_ns   = NULL;
+        GUPnPXMLDoc  *xml_doc;
+        gboolean      result;
 
         doc = xmlRecoverMemory (didl, strlen (didl));
         if (doc == NULL) {
                 g_set_error (error,
-                             G_MARKUP_ERROR,
-                             G_MARKUP_ERROR_PARSE,
+                             GUPNP_XML_ERROR,
+                             GUPNP_XML_ERROR_PARSE,
                              "Could not parse DIDL-Lite XML:\n%s", didl);
 
                 return FALSE;
@@ -256,8 +250,8 @@ gupnp_didl_lite_parser_parse_didl_recursive (GUPnPDIDLLiteParser *parser,
                                         NULL);
         if (element == NULL) {
                 g_set_error (error,
-                             G_MARKUP_ERROR,
-                             G_MARKUP_ERROR_PARSE,
+                             GUPNP_XML_ERROR,
+                             GUPNP_XML_ERROR_NO_NODE,
                              "No 'DIDL-Lite' node in the DIDL-Lite XML:\n%s",
                              didl);
                 xmlFreeDoc (doc);
@@ -267,8 +261,8 @@ gupnp_didl_lite_parser_parse_didl_recursive (GUPnPDIDLLiteParser *parser,
 
         if (element->children == NULL) {
                 g_set_error (error,
-                             G_MARKUP_ERROR,
-                             G_MARKUP_ERROR_EMPTY,
+                             GUPNP_XML_ERROR,
+                             GUPNP_XML_ERROR_EMPTY_NODE,
                              "Empty 'DIDL-Lite' node in the DIDL-Lite XML:\n%s",
                              didl);
                 xmlFreeDoc (doc);
@@ -276,27 +270,54 @@ gupnp_didl_lite_parser_parse_didl_recursive (GUPnPDIDLLiteParser *parser,
                 return FALSE;
         }
 
-        /* Create namespaces if they don't exist */
-        upnp_ns = xml_util_lookup_namespace (doc, GUPNP_XML_NAMESPACE_UPNP);
+        /* Lookup UPnP and DC namespaces */
+        ns_list = xmlGetNsList (doc,
+                                xmlDocGetRootElement (doc));
+
+        if (ns_list) {
+                short i;
+
+                for (i = 0; ns_list[i] != NULL; i++) {
+                        const char *prefix = (const char *) ns_list[i]->prefix;
+
+                        if (prefix == NULL)
+                                continue;
+
+                        if (! upnp_ns &&
+                            g_ascii_strcasecmp (prefix, "upnp") == 0)
+                                upnp_ns = ns_list[i];
+                        else if (! dc_ns &&
+                                 g_ascii_strcasecmp (prefix, "dc") == 0)
+                                dc_ns = ns_list[i];
+                        else if (! dlna_ns &&
+                                 g_ascii_strcasecmp (prefix, "dlna") == 0)
+                                dlna_ns = ns_list[i];
+                }
+
+                xmlFree (ns_list);
+        }
+
+        /* Create UPnP and DC namespaces if they don't exist */
         if (! upnp_ns)
-                upnp_ns = xml_util_create_namespace (xmlDocGetRootElement (doc),
-                                                     GUPNP_XML_NAMESPACE_UPNP);
-
-        dc_ns = xml_util_lookup_namespace (doc, GUPNP_XML_NAMESPACE_DC);
+                upnp_ns = xmlNewNs (xmlDocGetRootElement (doc),
+                                    (unsigned char *)
+                                    "urn:schemas-upnp-org:metadata-1-0/upnp/",
+                                    (unsigned char *)
+                                    GUPNP_DIDL_LITE_WRITER_NAMESPACE_UPNP);
         if (! dc_ns)
-                dc_ns = xml_util_create_namespace (xmlDocGetRootElement (doc),
-                                                   GUPNP_XML_NAMESPACE_DC);
-        dlna_ns = xml_util_lookup_namespace (doc, GUPNP_XML_NAMESPACE_DLNA);
+                dc_ns = xmlNewNs (xmlDocGetRootElement (doc),
+                                  (unsigned char *)
+                                  "http://purl.org/dc/elements/1.1/",
+                                  (unsigned char *)
+                                  GUPNP_DIDL_LITE_WRITER_NAMESPACE_DC);
         if (! dlna_ns)
-                dlna_ns = xml_util_create_namespace (xmlDocGetRootElement (doc),
-                                                   GUPNP_XML_NAMESPACE_DLNA);
+                dlna_ns = xmlNewNs (xmlDocGetRootElement (doc),
+                                    (unsigned char *)
+                                    "urn:schemas-dlna-org:metadata-2-0/",
+                                    (unsigned char *)
+                                    GUPNP_DIDL_LITE_WRITER_NAMESPACE_DLNA);
 
-        pv_ns = xml_util_lookup_namespace (doc, GUPNP_XML_NAMESPACE_PV);
-        if (! pv_ns)
-                pv_ns = xml_util_create_namespace (xmlDocGetRootElement (doc),
-                                                   GUPNP_XML_NAMESPACE_PV);
-
-        xml_doc = xml_doc_new (doc);
+        xml_doc = gupnp_xml_doc_new (doc);
 
         result = parse_elements (parser,
                                  element,
@@ -304,10 +325,9 @@ gupnp_didl_lite_parser_parse_didl_recursive (GUPnPDIDLLiteParser *parser,
                                  upnp_ns,
                                  dc_ns,
                                  dlna_ns,
-                                 pv_ns,
                                  recursive,
                                  error);
-        xml_doc_unref (xml_doc);
+        g_object_unref (xml_doc);
 
         return result;
 }
@@ -315,11 +335,10 @@ gupnp_didl_lite_parser_parse_didl_recursive (GUPnPDIDLLiteParser *parser,
 static gboolean
 parse_elements (GUPnPDIDLLiteParser *parser,
                 xmlNode             *node,
-                GUPnPAVXMLDoc       *xml_doc,
+                GUPnPXMLDoc         *xml_doc,
                 xmlNs               *upnp_ns,
                 xmlNs               *dc_ns,
                 xmlNs               *dlna_ns,
-                xmlNs               *pv_ns,
                 gboolean             recursive,
                 GError             **error)
 {
@@ -330,7 +349,7 @@ parse_elements (GUPnPDIDLLiteParser *parser,
 
                 object = gupnp_didl_lite_object_new_from_xml (element, xml_doc,
                                                               upnp_ns, dc_ns,
-                                                              dlna_ns, pv_ns);
+                                                              dlna_ns);
 
                 if (object == NULL)
                         continue;
@@ -347,7 +366,6 @@ parse_elements (GUPnPDIDLLiteParser *parser,
                                              upnp_ns,
                                              dc_ns,
                                              dlna_ns,
-                                             pv_ns,
                                              recursive,
                                              error)) {
                                 g_object_unref (object);
@@ -359,8 +377,8 @@ parse_elements (GUPnPDIDLLiteParser *parser,
                         if (!verify_didl_attributes (node)) {
                                 g_object_unref (object);
                                 g_set_error (error,
-                                             G_MARKUP_ERROR,
-                                             G_MARKUP_ERROR_PARSE,
+                                             GUPNP_XML_ERROR,
+                                             GUPNP_XML_ERROR_INVALID_ATTRIBUTE,
                                              "Could not parse DIDL-Lite XML");
 
                                 return FALSE;

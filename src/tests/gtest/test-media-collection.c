@@ -1,9 +1,7 @@
 /*
  * Copyright (C) 2012 Intel Corporation.
- * Copyright (C) 2013 Jens Georg <mail@jensge.org>
  *
  * Author: Jens Georg <jensg@openismus.com>
- *         Jens Georg <mail@jensge.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -59,8 +57,8 @@
 #define TEST_PARSE_COLLECTION_2 \
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" \
 "<DIDL-Lite" \
-"    xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"" \
 "    xmlns:dc=\"http://purl.org/dc/elements/1.1/\"" \
+"    xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"" \
 "    xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\"" \
 "    xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" \
 "    xsi:schemaLocation=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" \
@@ -91,9 +89,10 @@
 
 #define TEST_CREATE_FLAT \
 "<DIDL-Lite " \
-        "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" " \
         "xmlns:dc=\"http://purl.org/dc/elements/1.1/\" " \
-        "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">" \
+        "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" " \
+        "xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\" " \
+        "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\">" \
     "<item restricted=\"1\">" \
       "<dc:title>Song1</dc:title>" \
       "<upnp:class>object.item.audioItem</upnp:class>" \
@@ -113,9 +112,10 @@
 
 #define TEST_CREATE_FULL \
 "<DIDL-Lite " \
-        "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" " \
         "xmlns:dc=\"http://purl.org/dc/elements/1.1/\" " \
-        "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">" \
+        "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" " \
+        "xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\" " \
+        "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\">" \
     "<container>" \
       "<dc:title>TestCollection1</dc:title>" \
       "<dc:creator>TestCollection1Author</dc:creator>" \
@@ -139,9 +139,10 @@
 
 #define TEST_CREATE_FULL_REPARENT \
 "<DIDL-Lite " \
-        "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\" " \
         "xmlns:dc=\"http://purl.org/dc/elements/1.1/\" " \
-        "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\">" \
+        "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" " \
+        "xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\" " \
+        "xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\">" \
     "<container>" \
       "<item restricted=\"1\">" \
         "<dc:title>Song1</dc:title>" \
@@ -165,8 +166,8 @@
 
 #define TEST_PARSE_NO_XML "This is just some random text"
 
-static void
-test_didl_collection_construction (void)
+void
+test_didl_collection_construction ()
 {
         GUPnPMediaCollection *collection;
 
@@ -217,8 +218,8 @@ test_didl_collection_construction (void)
         g_object_unref (collection);
 }
 
-static void
-test_didl_collection_parse_flat (void)
+void
+test_didl_collection_parse_flat ()
 {
         GUPnPMediaCollection *collection;
         GList *items, *it;
@@ -245,8 +246,8 @@ test_didl_collection_parse_flat (void)
         g_list_free_full (items, (GDestroyNotify) g_object_unref);
 }
 
-static void
-test_didl_collection_parse_full (void)
+void
+test_didl_collection_parse_full ()
 {
         GUPnPMediaCollection *collection;
         GList *items, *it;
@@ -290,8 +291,8 @@ ignore_xml_parse_error (G_GNUC_UNUSED const gchar   *log_domain,
         return TRUE;
 }
 
-static void
-test_didl_collection_parse_invalid (void)
+void
+test_didl_collection_parse_invalid ()
 {
         GUPnPMediaCollection *collection;
         GList *items;
@@ -304,8 +305,8 @@ test_didl_collection_parse_invalid (void)
         g_object_unref (collection);
 }
 
-static void
-test_didl_collection_create_flat (void)
+void
+test_didl_collection_create_flat ()
 {
         GUPnPMediaCollection *collection;
         GUPnPDIDLLiteItem *item;
@@ -355,8 +356,8 @@ test_didl_collection_create_flat (void)
                          TEST_CREATE_FLAT);
 }
 
-static void
-test_didl_collection_create_full (void)
+void
+test_didl_collection_create_full ()
 {
         GUPnPMediaCollection *collection;
         GUPnPDIDLLiteItem *item;
@@ -409,8 +410,8 @@ test_didl_collection_create_full (void)
                          TEST_CREATE_FULL);
 }
 
-static void
-test_didl_collection_create_reparent (void)
+void
+test_didl_collection_create_reparent ()
 {
         GUPnPMediaCollection *collection;
         GUPnPDIDLLiteItem *item;
