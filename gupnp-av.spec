@@ -1,6 +1,6 @@
 Name:          gupnp-av
 Version:       0.12.2
-Release:       1%{?dist}
+Release:       3%{?dist}
 Summary:       A collection of helpers for building UPnP AV applications
 
 Group:         System Environment/Libraries
@@ -79,6 +79,12 @@ find %{buildroot} -name '*.la' -exec rm -f {} ';'
 %{_datadir}/gtk-doc/html/%{name}
 
 %changelog
+* Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 0.12.2-3
+- Mass rebuild 2014-01-24
+
+* Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 0.12.2-2
+- Mass rebuild 2013-12-27
+
 * Thu May 30 2013 Peter Robinson <pbrobinson@fedoraproject.org> 0.12.2-1
 - 0.12.2 release
 - http://ftp.gnome.org/pub/GNOME/sources/gupnp-av/0.12/gupnp-av-0.12.2.news
